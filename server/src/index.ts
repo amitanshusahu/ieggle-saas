@@ -12,7 +12,7 @@ let online: number = 0;
 io.on('connection', (socket) => {
   online++;
   io.emit('online', online);
-  // console.log(socket.id, " Connected");
+  console.log(socket.id, " Connected");
 
   // on start
   socket.on('start', (personObj, cb) => {
@@ -24,7 +24,7 @@ io.on('connection', (socket) => {
     online--;
     io.emit('online', online);
     handelDisconnect(socket.id, io);
-    // console.log("disconnected : ", socket.id);
+    console.log("disconnected : ", socket.id);
   });
 
 

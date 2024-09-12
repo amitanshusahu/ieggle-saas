@@ -161,6 +161,7 @@ export default function useSocketAndWebRTC() {
         if (myVideoRef.current) {
           myVideoRef.current.srcObject = stream;
           myVideoRef.current.play();
+          myVideoRef.current.muted = true;
           console.log("my video working");
         }
 

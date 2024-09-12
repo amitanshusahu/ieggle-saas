@@ -4,7 +4,7 @@ import { Socket } from 'socket.io';
 let connectedRoomArr: Array<room> = [];
 
 export function handelStart(socket: any, cb: Function, io: any, personObj: person): void {
-  // console.log(connectedRoomArr);
+  console.log(connectedRoomArr);
   let user: User = {
     id: socket.id,
     im: personObj.im,
@@ -100,7 +100,7 @@ function onUserJoin(user: User, socket: Socket, io: any): void {
 }
 
 function connectUsers(user1: User, user2: User, socket: Socket, io: any): void {
-  // console.log(`Connecting user ${user1.id} and user ${user2.id}`);
+  console.log(`Connecting user ${user1.id} and user ${user2.id}`);
   let roomid = `${user1.id}${user2.id}`;
   io.sockets.sockets.get(user2.id)?.join(roomid);
   io.sockets.sockets.get(user1.id)?.join(roomid);
