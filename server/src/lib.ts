@@ -1,109 +1,43 @@
 import { v4 as uuidv4 } from 'uuid';
-import { GetTypesResult, room } from './types';
+import { GetTypesResult, room, person, User} from './types';
+import { Socket } from 'socket.io';
+let connectedRoomArr: Array<room> = [];
 
-export function handelStart(roomArr: Array<room>, socket: any, cb: Function, io: any): void {
-  console.log(roomArr);
-  // check available rooms
-  let availableroom = checkAvailableRoom();
-  if (availableroom.is) {
-    socket.join(availableroom.roomid);
-    cb('p2');
-    closeRoom(availableroom.roomid);
-    if (availableroom?.room) {
-      io.to(availableroom.room.p1.id).emit('remote-socket', socket.id);
-      socket.emit('remote-socket', availableroom.room.p1.id);
-      socket.emit('roomid', availableroom.room.roomid);
-    }
+export function handelStart(socket: any, cb: Function, io: any, personObj: person): void {
+  // console.log(connectedRoomArr);
+  let user: User = {
+    id: socket.id,
+    im: personObj.im,
+    lookingFor: personObj.lookingFor,
+    roomType: personObj.roomType
   }
-  // if no available room, create one
-  else {
-    let roomid = uuidv4();
-    socket.join(roomid);
-    roomArr.push({
-      roomid,
-      isAvailable: true,
-      p1: {
-        id: socket.id,
-      },
-      p2: {
-        id: null,
-      }
-    });
-    cb('p1');
-    socket.emit('roomid', roomid);
-  }
+  onUserJoin(user, socket, io);
 
-
-
-
-  /**
-   * 
-   * @param roomid 
-   * @desc search though roomArr and 
-   * make isAvailable false, also se p2.id 
-   * socket.id
-   */
-  function closeRoom(roomid: string): void {
-    for (let i = 0; i < roomArr.length; i++) {
-      if (roomArr[i].roomid == roomid) {
-        roomArr[i].isAvailable = false;
-        roomArr[i].p2.id = socket.id;
-        break;
-      }
-    }
-  }
-
-
-  /**
-   * 
-   * @returns Object {is, roomid, room}
-   * is -> true if foom is available
-   * roomid -> id of the room, could be empth
-   * room -> the roomArray, could be empty 
-   */
-  function checkAvailableRoom(): { is: boolean, roomid: string, room: room | null } {
-    console.log("backend soket id: ", socket.id)
-    for (let i = 0; i < roomArr.length; i++) {
-      if (roomArr[i].isAvailable) {
-        if (roomArr[i].p1.id == socket.id || roomArr[i].p2.id == socket.id) {
-          console.log("rommarri p1 id: ", roomArr[i].p1.id)
-          return { is: false, roomid: "", room: null };
-        }
-        return { is: true, roomid: roomArr[i].roomid, room: roomArr[i] };
-      }
-      if (roomArr[i].p1.id == socket.id || roomArr[i].p2.id == socket.id) {
-        console.log("rommarri p1 id: ", roomArr[i].p1.id)
-        return { is: false, roomid: "", room: null };
-      }
-    }
-
-    return { is: false, roomid: '', room: null };
-  }
 }
 
 /**
  * @desc handels disconnceition event
  */
-export function handelDisconnect(disconnectedId: string, roomArr: Array<room>, io: any) {
-  for (let i = 0; i < roomArr.length; i++) {
-    if (roomArr[i].p1.id == disconnectedId) {
-      io.to(roomArr[i].p2.id).emit("disconnected");
-      if (roomArr[i].p2.id) {
-        roomArr[i].isAvailable = true;
-        roomArr[i].p1.id = roomArr[i].p2.id;
-        roomArr[i].p2.id = null;
+export function handelDisconnect(disconnectedId: string, io: any) {
+  for (let i = 0; i < connectedRoomArr.length; i++) {
+    if (connectedRoomArr[i].p1.id == disconnectedId) {
+      io.to(connectedRoomArr[i].p2.id).emit("disconnected");
+      if (connectedRoomArr[i].p2.id) {
+        connectedRoomArr[i].isAvailable = true;
+        connectedRoomArr[i].p1.id = connectedRoomArr[i].p2.id;
+        connectedRoomArr[i].p2.id = null;
       }
       else {
-        roomArr.splice(i, 1);
+        connectedRoomArr.splice(i, 1);
       }
-    } else if (roomArr[i].p2.id == disconnectedId) {
-      io.to(roomArr[i].p1.id).emit("disconnected");
-      if (roomArr[i].p1.id) {
-        roomArr[i].isAvailable = true;
-        roomArr[i].p2.id = null;
+    } else if (connectedRoomArr[i].p2.id == disconnectedId) {
+      io.to(connectedRoomArr[i].p1.id).emit("disconnected");
+      if (connectedRoomArr[i].p1.id) {
+        connectedRoomArr[i].isAvailable = true;
+        connectedRoomArr[i].p2.id = null;
       }
       else {
-        roomArr.splice(i, 1);
+        connectedRoomArr.splice(i, 1);
       }
     }
   }
@@ -111,14 +45,84 @@ export function handelDisconnect(disconnectedId: string, roomArr: Array<room>, i
 
 
 // get type of person (p1 or p2)
-export function getType(id: string, roomArr: Array<room>): GetTypesResult {
-  for (let i = 0; i < roomArr.length; i++) {
-    if (roomArr[i].p1.id == id) {
-      return { type: 'p1', p2id: roomArr[i].p2.id };
-    } else if (roomArr[i].p2.id == id) {
-      return { type: 'p2', p1id: roomArr[i].p1.id };
+export function getType(id: string): GetTypesResult {
+  for (let i = 0; i < connectedRoomArr.length; i++) {
+    if (connectedRoomArr[i].p1.id == id) {
+      return { type: 'p1', p2id: connectedRoomArr[i].p2.id };
+    } else if (connectedRoomArr[i].p2.id == id) {
+      return { type: 'p2', p1id: connectedRoomArr[i].p1.id };
     }
   }
 
   return false;
+}
+
+// Store connected users in memory (you can use Redis or any other storage for scaling)
+const waitingRoom: { [key: string]: User[] } = {};  // Store users by roomType
+
+// Function to find a match for the user
+function findMatch(user: User): User | null {
+  const { im, lookingFor, roomType } = user;
+
+  // Check if the roomType exists
+  if (!waitingRoom[roomType]) {
+    waitingRoom[roomType] = [];  // Initialize if not present
+  }
+
+  // Iterate over the users in the same roomType
+  for (let i = 0; i < waitingRoom[roomType].length; i++) {
+    const potentialMatch = waitingRoom[roomType][i];
+
+    // Match criteria: im and lookingFor should complement
+    if (potentialMatch.im === lookingFor && potentialMatch.lookingFor === im) {
+      // Remove the matched user from the waiting pool
+      waitingRoom[roomType].splice(i, 1);
+
+      // Return the matched user
+      return potentialMatch;
+    }
+  }
+
+  // No match found, add the user to the room pool
+  waitingRoom[roomType].push(user);
+  return null;
+}
+
+function onUserJoin(user: User, socket: Socket, io: any): void {
+  const match = findMatch(user);
+
+  if (match) {
+    // console.log(`User ${user.id} matched with ${match.id}`);
+    connectUsers(user, match, socket, io);
+  } else {
+    // console.log(`User ${user.id} is waiting for a match in roomType: ${user.roomType}`);
+  }
+}
+
+function connectUsers(user1: User, user2: User, socket: Socket, io: any): void {
+  // console.log(`Connecting user ${user1.id} and user ${user2.id}`);
+  let roomid = `${user1.id}${user2.id}`;
+  io.sockets.sockets.get(user2.id)?.join(roomid);
+  io.sockets.sockets.get(user1.id)?.join(roomid);
+  connectedRoomArr.push({
+    roomid,
+    isAvailable: true,
+    p1: {
+      id: user2.id,
+      im: user2.im,
+      lookingfor: user2.lookingFor,
+    },
+    p2: {
+      id: user1.id,
+      im: user1.im,
+      lookingfor: user1.lookingFor,
+    }
+  });
+  io.to(roomid).emit('roomid', roomid);
+  io.to(user2.id).emit('get-type', "p1" );
+  io.to(user1.id).emit('get-type', "p2" );
+  io.to(user2.id).emit('remote-socket', user1.id);
+  io.to(user1.id).emit('remote-socket', user2.id);
+  // console.log("sending room id")
+  // console.log(connectedRoomArr)
 }

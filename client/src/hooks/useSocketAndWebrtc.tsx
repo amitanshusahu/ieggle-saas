@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Socket, io } from "socket.io-client";
-import { useSocketStore } from "../store/useStore";
+import { useMessageStore, useSocketStore, useUserStore } from "../store/useStore";
 
 export default function useSocketAndWebRTC() {
-  const { type, setType, remoteSocket, setRemoteSocket, setConnect } = useSocketStore();
+  const { type, setType, remoteSocket, setRemoteSocket, setSocketFromStore, setRoomId } = useSocketStore();
+  const {im, lookingFor, roomType, setStart} = useUserStore();
+  const {setStrangerMsg} = useMessageStore();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [peer, setPeer] = useState<RTCPeerConnection | null>(null);
   const [status, setStatus] = useState("no one connected");
@@ -26,12 +28,25 @@ export default function useSocketAndWebRTC() {
     socket.on("remote-socket", handleRemoteSocket);
     socket.on("sdp:reply", handleSdpReply);
     socket.on("ice:reply", handleIceReply);
-    socket.on('get-message', handleGetMessage)
+    socket.on('get-message', handleGetMessage);
+    socket.on('get-type', (type) => {
+      setType(type);
+      console.log("type: ", type)
+    });
+    socket.on('roomid', (roomid) => {
+      console.log('got room id')
+      setRoomId(roomid);
+      console.log("roomid", roomid);
+    });
 
     return () => {
+      socket.off("disconnected")
       socket.off("remote-socket");
       socket.off("sdp:reply");
       socket.off("ice:reply");
+      socket.off("get-message");
+      socket.off("get-type");
+      socket.off("roomid");
     };
   }, [socket, type, peer]);
 
@@ -41,6 +56,7 @@ export default function useSocketAndWebRTC() {
       newSocket.on("connect", () => {
         console.log("Socket connected:", newSocket.id);
         setSocket(newSocket);
+        setSocketFromStore(newSocket);
         emmitStart(newSocket);
       });
     } else {
@@ -52,6 +68,8 @@ export default function useSocketAndWebRTC() {
     if (socket) {
       socket.disconnect();
       setSocket(null);
+      setSocketFromStore(null);
+      setStart(false)
     }
     if (peer) {
       peer.close();
@@ -61,9 +79,8 @@ export default function useSocketAndWebRTC() {
   };
 
   const emmitStart = (currentSocket: Socket) => {
-    currentSocket.emit("start", (person: string) => {
-      setType(person);
-      console.log("type", person);
+    currentSocket.emit("start", {im, lookingFor, roomType}, () => {
+      console.log("emitted start");
     });
   };
 
@@ -164,7 +181,7 @@ export default function useSocketAndWebRTC() {
   }
 
   const addMessageToMessageBox = (msg: string, from: string) => {
-    
+    setStrangerMsg(msg)
   }
 
   return {

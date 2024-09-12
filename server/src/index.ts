@@ -6,27 +6,25 @@ import { Server } from 'socket.io';
 const server = app.listen('8000', () => console.log('Server is up, 8000'));
 const io = new Server(server, { cors: { origin: '*' } });
 import { handelStart, handelDisconnect, getType } from './lib';
-import { GetTypesResult, room } from './types';
 
 let online: number = 0;
-let roomArr: Array<room> = [];
 
 io.on('connection', (socket) => {
   online++;
   io.emit('online', online);
-	console.log(socket.id, " Connected");
+  // console.log(socket.id, " Connected");
 
   // on start
-  socket.on('start', cb => {
-    handelStart(roomArr, socket, cb, io);
+  socket.on('start', (personObj, cb) => {
+    handelStart(socket, cb, io, personObj);
   })
 
   // On disconnection
   socket.on('disconnect', () => {
     online--;
     io.emit('online', online);
-    handelDisconnect(socket.id, roomArr, io);
-	console.log("disconnected : ", socket.id);
+    handelDisconnect(socket.id, io);
+    // console.log("disconnected : ", socket.id);
   });
 
 
@@ -36,33 +34,29 @@ io.on('connection', (socket) => {
 
   // on ice send
   socket.on('ice:send', ({ candidate }) => {
-    console.log("receved ice candidates")
-    let type: GetTypesResult = getType(socket.id, roomArr);
-    if (type) {
-      if (type?.type == 'p1') {
-        typeof (type?.p2id) == 'string'
-          && io.to(type.p2id).emit('ice:reply', { candidate, from: socket.id });
-      }
-      else if (type?.type == 'p2') {
-        typeof (type?.p1id) == 'string'
-          && io.to(type.p1id).emit('ice:reply', { candidate, from: socket.id });
-      }
+    // console.log("received ice candidates");
+
+    const type = getType(socket.id);
+    if (!type) return;
+
+    const peerId = type.type === 'p1' ? type.p2id : type.p1id;
+
+    if (typeof peerId === 'string') {
+      io.to(peerId).emit('ice:reply', { candidate, from: socket.id });
     }
   });
 
   // on sdp send
   socket.on('sdp:send', ({ sdp }) => {
-    console.log("receved sdp")
-    let type = getType(socket.id, roomArr);
-    if (type) {
-      if (type?.type == 'p1') {
-        typeof (type?.p2id) == 'string'
-          && io.to(type.p2id).emit('sdp:reply', { sdp, from: socket.id });
-      }
-      if (type?.type == 'p2') {
-        typeof (type?.p1id) == 'string'
-          && io.to(type.p1id).emit('sdp:reply', { sdp, from: socket.id });
-      }
+    // console.log("received sdp");
+
+    const type = getType(socket.id);
+    if (!type) return;
+
+    const peerId = type.type === 'p1' ? type.p2id : type.p1id;
+
+    if (typeof peerId === 'string') {
+      io.to(peerId).emit('sdp:reply', { sdp, from: socket.id });
     }
   })
 
