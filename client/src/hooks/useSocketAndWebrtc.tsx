@@ -176,11 +176,11 @@ export default function useSocketAndWebRTC() {
   };
 
   // text chat related
-  const handleGetMessage = (input: string, type: string) => {
-    addMessageToMessageBox(input, type);
+  const handleGetMessage = (input: string) => {
+    addMessageToMessageBox(input);
   }
 
-  const addMessageToMessageBox = (msg: string, from: string) => {
+  const addMessageToMessageBox = (msg: string) => {
     setStrangerMsg(msg)
   }
 
