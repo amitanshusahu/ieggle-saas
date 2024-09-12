@@ -68,7 +68,7 @@ function ReadyBox() {
   const { connect } = useSocketStore();
   return (
     <div className="border-2 rounded-2xl w-[50%] flex flex-col justify-center items-center">
-      <div className="flex flex flex-col justify-center items-center gap-4">
+      <div className="flex flex-col justify-center items-center gap-4">
         <h2 className="font-bold text-gray-600 text-xl">Are you ready ?</h2>
         <button className="btn"
           onClick={() => {
