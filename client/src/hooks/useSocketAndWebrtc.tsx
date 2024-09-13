@@ -17,6 +17,8 @@ export default function useSocketAndWebRTC() {
     return () => {
       if (socket) {
         socket.disconnect();
+        setSocket(null);
+        setSocketFromStore(null);
       }
     };
   }, [socket]);
