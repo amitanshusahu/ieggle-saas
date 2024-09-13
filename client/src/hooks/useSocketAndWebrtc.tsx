@@ -4,11 +4,10 @@ import { useMessageStore, useSocketStore, useUserStore } from "../store/useStore
 
 export default function useSocketAndWebRTC() {
   const { type, setType, remoteSocket, setRemoteSocket, setSocketFromStore, setRoomId } = useSocketStore();
-  const {im, lookingFor, roomType, setStart} = useUserStore();
+  const {im, lookingFor, roomType, setIsConnectionStarted, setIsConnectedWithOtherUser} = useUserStore();
   const {setStrangerMsg} = useMessageStore();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [peer, setPeer] = useState<RTCPeerConnection | null>(null);
-  const [status, setStatus] = useState("no one connected");
 
   const myVideoRef = useRef<HTMLVideoElement>(null);
   const strangerVideoRef = useRef<HTMLVideoElement>(null);
@@ -71,13 +70,13 @@ export default function useSocketAndWebRTC() {
       socket.disconnect();
       setSocket(null);
       setSocketFromStore(null);
-      setStart(false)
+      setIsConnectionStarted(false)
     }
     if (peer) {
       peer.close();
       setPeer(null);
     }
-    setStatus("no one connected");
+    setIsConnectedWithOtherUser(false);
   };
 
   const emmitStart = (currentSocket: Socket) => {
@@ -90,7 +89,7 @@ export default function useSocketAndWebRTC() {
   const handleRemoteSocket = (id: string) => {
     console.log("remote socket id ", id);
     setRemoteSocket(id);
-    setStatus("remote socket connected, someone connected");
+    setIsConnectedWithOtherUser(true);
 
     // Create peer connection when remote socket is received
     const peerConnection = createPeerConnection();
@@ -192,6 +191,5 @@ export default function useSocketAndWebRTC() {
     strangerVideoRef,
     connectSocket,
     disconnectSocket,
-    status,
   };
 }

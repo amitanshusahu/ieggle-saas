@@ -7,7 +7,7 @@ interface LayoutProps {
 }
 
 export default function DefaultLayout1({ myVideoRef, strangerVideoRef }: LayoutProps) {
-  const { start } = useUserStore();
+  const { isConnectionStarted, isConnectedWithOtherUser} = useUserStore();
   return (
     <div className="mt-4 flex h-[calc(100dvh-100px)] gap-4">
       <div className="flex flex-col gap-4 h-full justify-center w-[50%]">
@@ -15,7 +15,7 @@ export default function DefaultLayout1({ myVideoRef, strangerVideoRef }: LayoutP
         <VideoPlayer forwardRef={strangerVideoRef} />
       </div>
       {
-        start ? <MessageBox /> : <ReadyBox />
+        isConnectionStarted ? isConnectedWithOtherUser ? <MessageBox /> : <LoadingBox /> : <ReadyBox />
       }
     </div>
   )
@@ -64,7 +64,7 @@ function MessageBox() {
 }
 
 function ReadyBox() {
-  const { setStart } = useUserStore();
+  const { setIsConnectionStarted } = useUserStore();
   const { connect } = useSocketStore();
   return (
     <div className="border-2 rounded-2xl w-[50%] flex flex-col justify-center items-center">
@@ -74,10 +74,24 @@ function ReadyBox() {
           onClick={() => {
             if (connect) {
               connect();
-              setStart(true);
+              setIsConnectionStarted(true);
             }
           }}>
           Let's Go</button>
+      </div>
+    </div>
+  )
+}
+
+function LoadingBox() {
+  return (
+    <div className="border-2 rounded-2xl w-[50%] flex flex-col justify-center items-center">
+      <div className="flex flex-col justify-center items-center gap-4">
+        <div>
+          <img src="https://img.freepik.com/premium-photo/minimal-japanese-kawaii-sleepy-lazy-girl-chibi-anime-vector-art-sticker-with-clean-bold-line-cute_655090-6870.jpg" alt="waiting" 
+          className="w-full"/>
+        </div>
+        <h2>waiting for someone to connect..</h2>
       </div>
     </div>
   )

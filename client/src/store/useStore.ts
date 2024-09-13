@@ -23,8 +23,10 @@ interface UserState{
   setLookingFor: (sex: "male" | "female" | "random") => void;
   roomType: "normal" | "adult";
   setRoomType: (type: "normal" | "adult") => void;
-  start: boolean;
-  setStart : (val: boolean) => void;
+  isConnectionStarted: boolean;
+  setIsConnectionStarted : (val: boolean) => void;
+  isConnectedWithOtherUser : boolean;
+  setIsConnectedWithOtherUser: (val: boolean) => void;
 }
 
 interface MessageState{
@@ -51,7 +53,7 @@ export const useSocketStore = create<SocketState>((set) => ({
   connect: null,
   setConnect: (fun: Function) => set(() => ({ connect: fun })),
   disconnect: null,
-  setDisonnect: (fun: Function) => set(() => ({ disconnect: fun }))
+  setDisonnect: (fun: Function) => set(() => ({ disconnect: fun })),
 }));
 
 export const useUserStore = create<UserState>((set) => ({
@@ -61,13 +63,15 @@ export const useUserStore = create<UserState>((set) => ({
   setLookingFor: (sex) => set(() => ({lookingFor: sex})),
   roomType: "normal",
   setRoomType: (type) => set(() => ({roomType: type})),
-  start: false,
-  setStart: (val) => set(() => ({start: val}))
+  isConnectionStarted: false,
+  setIsConnectionStarted: (val) => set(() => ({isConnectionStarted: val})),
+  isConnectedWithOtherUser : false,
+  setIsConnectedWithOtherUser: (val ) => set(() => ({isConnectedWithOtherUser: val})),
 }));
 
 export const useMessageStore = create<MessageState>((set) => ({
   strangerMsg: "stranger messages wil appear here...",
   setStrangerMsg : (msg) => set(() => ({strangerMsg: msg})),
   myMsg: "type your msg here",
-  setMyMsg: (msg) => set(() => ({myMsg: msg}))
+  setMyMsg: (msg) => set(() => ({myMsg: msg})),
 }))

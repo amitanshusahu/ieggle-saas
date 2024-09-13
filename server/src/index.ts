@@ -9,7 +9,8 @@ const app = express();
 const allowedOrigins = [
   'https://ieggle-client-hwnl3.ondigitalocean.app',
   'https://www.ieggle.cam',
-  'https://ieggle.cam'
+  'https://ieggle.cam',
+  // 'http://localhost:5173'
 ];
 
 // CORS configuration
