@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import { GetTypesResult, room, person, User } from './types';
 import { Socket } from 'socket.io';
 let connectedRoomArr: Array<room> = [];
@@ -14,9 +13,6 @@ export function handelStart(socket: any, cb: Function, io: any, personObj: perso
 
 }
 
-/**
- * @desc handels disconnceition event
- */
 export function handelDisconnect(disconnectedId: string, io: any) {
   // remove users from commected room 
   for (let i = 0; i < connectedRoomArr.length; i++) {
