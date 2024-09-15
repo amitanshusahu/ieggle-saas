@@ -9,7 +9,7 @@ interface LayoutProps {
 export default function DefaultLayout1({ myVideoRef, strangerVideoRef }: LayoutProps) {
   const { isConnectionStarted, isConnectedWithOtherUser} = useUserStore();
   return (
-    <div className="mt-4 flex h-[calc(100dvh-100px)] gap-4">
+    <div className="mt-4 flex h-[calc(100dvh-100px)] gap-4 animate-fade">
       <div className="flex flex-col gap-4 h-full justify-center w-[50%]">
         <VideoPlayer forwardRef={myVideoRef} />
         <VideoPlayer forwardRef={strangerVideoRef} />
@@ -85,13 +85,13 @@ function ReadyBox() {
 
 function LoadingBox() {
   return (
-    <div className="border-2 rounded-2xl w-[50%] flex flex-col justify-center items-center">
-      <div className="flex flex-col justify-center items-center gap-4">
-        <div>
-          <img src="https://img.freepik.com/premium-photo/minimal-japanese-kawaii-sleepy-lazy-girl-chibi-anime-vector-art-sticker-with-clean-bold-line-cute_655090-6870.jpg" alt="waiting" 
+    <div className="border-2 rounded-2xl w-[50%] flex flex-col justify-center items-center animate-fade">
+      <div className="flex flex-col justify-center items-center gap-4 m-8 animate-pulse">
+        <div className="mt-[-50px] w-[70%]">
+          <img src="/waiting.jpg" alt="waiting" 
           className="w-full"/>
         </div>
-        <h2>waiting for someone to connect..</h2>
+        <h2 className="font-bold text-gray-500">waiting for someone to connect..</h2>
       </div>
     </div>
   )

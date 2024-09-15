@@ -12,7 +12,7 @@ export default function ChatNav() {
   }
 
   return (
-    <nav className="flex justify-between items-center">
+    <nav className="flex justify-between items-center animate-fade">
       <div className="flex gap-4">
         <button className="p-2 px-4 bg-gray-200 rounded-lg"> <VideoOn /> </button>
         <button className="p-2 px-4 bg-gray-200 rounded-lg"> <MicOn /> </button>
