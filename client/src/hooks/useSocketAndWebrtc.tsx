@@ -177,8 +177,25 @@ export default function useSocketAndWebRTC() {
         mediaStream.getTracks().forEach((track) => track.stop());
       }
 
+      let constraints;
+      if (isVideo) {
+        constraints = {
+          audio: isAudio,
+          video: {
+            width: { ideal: 640 }, // 360p width
+            height: { ideal: 360 }, // 360p height
+          },
+        };
+      }
+      else {
+        constraints = {
+          audio: isAudio,
+          video: isVideo,
+        };
+      }
+
       // Capture media based on current video/audio settings
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: isAudio, video: isVideo });
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setMediaStream(stream);
 
       // Set local video stream
@@ -222,7 +239,22 @@ export default function useSocketAndWebRTC() {
   const addTracksToPeer = (peer: RTCPeerConnection, stream: MediaStream) => {
     if (isVideo) {
       const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) peer.addTrack(videoTrack, stream);
+      if (videoTrack) {
+        const sender = peer.addTrack(videoTrack, stream);
+
+        // Set preferred video quality
+        const parameters = sender.getParameters();
+        if (!parameters.encodings) {
+          parameters.encodings = [{}];
+        }
+        parameters.encodings[0] = {
+          ...parameters.encodings[0],
+          maxBitrate: 100000, // Maximum bitrate (e.g., 500kbps)
+          maxFramerate: 15, // Maximum frame rate
+        };
+
+        sender.setParameters(parameters);
+      }
     }
 
     if (isAudio) {
