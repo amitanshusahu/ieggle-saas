@@ -36,10 +36,23 @@ interface MessageState{
   setMyMsg: (msg: string) => void;
 }
 
-// interface SettingState{
-//   isVideo: boolean;
-//   isAudio: boolean;
-// }
+interface SettingState{
+  isVideo: boolean;
+  setIsVideo : (val: boolean) => void;
+  isAudio: boolean;
+  setIsAudio : (val: boolean) => void;
+  isSetting: boolean;
+  setIsSetting : (val: boolean) => void;
+}
+
+export const useSettingStore = create<SettingState>((set) => ({
+  isVideo: true,
+  setIsVideo: (val) => set(() => ({isVideo: val})),
+  isAudio: true,
+  setIsAudio: (val) => set(() => ({isAudio: val})),
+  isSetting: false,
+  setIsSetting: (val) => set(() => ({isSetting: val})),
+}))
 
 export const useSocketStore = create<SocketState>((set) => ({
   socket: null,

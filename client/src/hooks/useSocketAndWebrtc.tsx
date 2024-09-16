@@ -1,17 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { Socket, io } from "socket.io-client";
-import { useMessageStore, useSocketStore, useUserStore } from "../store/useStore";
+import { useMessageStore, useSettingStore, useSocketStore, useUserStore } from "../store/useStore";
 
 export default function useSocketAndWebRTC() {
   const { type, setType, remoteSocket, setRemoteSocket, setSocketFromStore, setRoomId } = useSocketStore();
-  const {im, lookingFor, roomType, setIsConnectionStarted, setIsConnectedWithOtherUser} = useUserStore();
-  const {setStrangerMsg} = useMessageStore();
+  const { im, lookingFor, roomType, setIsConnectionStarted, setIsConnectedWithOtherUser } = useUserStore();
+  const { isVideo, isAudio } = useSettingStore();
+  const { setStrangerMsg } = useMessageStore();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [peer, setPeer] = useState<RTCPeerConnection | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
   const myVideoRef = useRef<HTMLVideoElement>(null);
   const strangerVideoRef = useRef<HTMLVideoElement>(null);
 
+  // Capture media whenever isAudio or isVideo changes
+  useEffect(() => {
+    startMediaCapture();
+  }, [isAudio, isVideo]);
+
+  // Cleanup media tracks on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [mediaStream]);
+
+  // Clean up socket and peer on unmount
   useEffect(() => {
     return () => {
       if (socket) {
@@ -22,6 +39,17 @@ export default function useSocketAndWebRTC() {
     };
   }, [socket]);
 
+  // Peer cleanup effect
+  useEffect(() => {
+    return () => {
+      if (peer) {
+        peer.close();
+        setPeer(null);
+      }
+    };
+  }, [peer]);
+
+  // Socket event listeners and cleanup
   useEffect(() => {
     if (!socket) return;
 
@@ -30,18 +58,11 @@ export default function useSocketAndWebRTC() {
     socket.on("sdp:reply", handleSdpReply);
     socket.on("ice:reply", handleIceReply);
     socket.on('get-message', handleGetMessage);
-    socket.on('get-type', (type) => {
-      setType(type);
-      console.log("type: ", type)
-    });
-    socket.on('roomid', (roomid) => {
-      console.log('got room id')
-      setRoomId(roomid);
-      console.log("roomid", roomid);
-    });
+    socket.on('get-type', (type) => setType(type));
+    socket.on('roomid', (roomid) => setRoomId(roomid));
 
     return () => {
-      socket.off("disconnected")
+      socket.off("disconnected");
       socket.off("remote-socket");
       socket.off("sdp:reply");
       socket.off("ice:reply");
@@ -55,13 +76,10 @@ export default function useSocketAndWebRTC() {
     if (!socket) {
       const newSocket = io(import.meta.env.VITE_SERVER_URL);
       newSocket.on("connect", () => {
-        console.log("Socket connected:", newSocket.id);
         setSocket(newSocket);
         setSocketFromStore(newSocket);
         emmitStart(newSocket);
       });
-    } else {
-      console.log("Socket is already connected!!");
     }
   };
 
@@ -70,7 +88,7 @@ export default function useSocketAndWebRTC() {
       socket.disconnect();
       setSocket(null);
       setSocketFromStore(null);
-      setIsConnectionStarted(false)
+      setIsConnectionStarted(false);
     }
     if (peer) {
       peer.close();
@@ -80,27 +98,25 @@ export default function useSocketAndWebRTC() {
   };
 
   const emmitStart = (currentSocket: Socket) => {
-    currentSocket.emit("start", {im, lookingFor, roomType}, () => {
-      console.log("emitted start");
-    });
+    currentSocket.emit("start", { im, lookingFor, roomType });
   };
 
-  // video chart realated
-  const handleRemoteSocket = (id: string) => {
-    console.log("remote socket id ", id);
+  const handleRemoteSocket = async (id: string) => {
     setRemoteSocket(id);
     setIsConnectedWithOtherUser(true);
 
-    // Create peer connection when remote socket is received
     const peerConnection = createPeerConnection();
     setPeer(peerConnection);
-    startMediaCapture(peerConnection);
+
+    const stream = mediaStream || (await startMediaCapture());
+    if (stream) {
+      addTracksToPeer(peerConnection, stream);
+    }
   };
 
   const handleSdpReply = async ({ sdp }: { sdp: RTCSessionDescription }) => {
     if (peer) {
       await peer.setRemoteDescription(new RTCSessionDescription(sdp));
-      console.log("Peer remote description set");
       if (type === "p2") {
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
@@ -116,7 +132,6 @@ export default function useSocketAndWebRTC() {
   };
 
   const handleDisconnect = () => {
-    alert("disconnected");
     disconnectSocket();
   };
 
@@ -130,19 +145,16 @@ export default function useSocketAndWebRTC() {
     peer.onicecandidate = (e) => {
       if (e.candidate) {
         socket?.emit("ice:send", { candidate: e.candidate, to: remoteSocket });
-        console.log("sent:ice");
       }
     };
 
     peer.ontrack = (e) => {
-      console.log("Received remote track:", e);
       if (strangerVideoRef.current) {
         strangerVideoRef.current.srcObject = e.streams[0];
         strangerVideoRef.current.play();
       }
     };
 
-    console.log("Created new peer connection");
     return peer;
   };
 
@@ -151,40 +163,73 @@ export default function useSocketAndWebRTC() {
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       socket?.emit("sdp:send", { sdp: peer.localDescription });
-      console.log("sent:sdp");
     }
   };
 
-  const startMediaCapture = (peer: RTCPeerConnection) => {
-    navigator.mediaDevices
-      .getUserMedia({ audio: true, video: true })
-      .then((stream) => {
-        if (myVideoRef.current) {
-          myVideoRef.current.srcObject = stream;
-          myVideoRef.current.play();
-          myVideoRef.current.muted = true;
-          console.log("my video working");
-        }
+  const startMediaCapture = async () => {
+    try {
+      // Stop existing tracks before re-capturing media
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+      }
 
-        stream.getTracks().forEach((track) => {
-          peer.addTrack(track, stream);
+      // Capture media based on current video/audio settings
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: isAudio, video: isVideo });
+      setMediaStream(stream);
+
+      // Set local video stream
+      if (myVideoRef.current) {
+        myVideoRef.current.srcObject = stream;
+        myVideoRef.current.play();
+        myVideoRef.current.muted = true;
+      }
+
+      // Update peer connection with the new tracks
+      if (peer) {
+        peer.getSenders().forEach(sender => {
+          if (sender.track?.kind === 'video' && !isVideo) {
+            sender.track.stop(); // Stop sending video
+            peer.removeTrack(sender); // Remove track from peer connection
+          } else if (sender.track?.kind === 'audio' && !isAudio) {
+            sender.track.stop(); // Stop sending audio
+            peer.removeTrack(sender); // Remove track from peer connection
+          }
         });
 
-        console.log("tracks added to peer connection");
-      })
-      .catch((ex) => {
-        console.error("Media capture error:", ex);
-      });
+        // Add new tracks for video/audio based on settings
+        if (isVideo) {
+          const videoTrack = stream.getVideoTracks()[0];
+          if (videoTrack) peer.addTrack(videoTrack, stream);
+        }
+
+        if (isAudio) {
+          const audioTrack = stream.getAudioTracks()[0];
+          if (audioTrack) peer.addTrack(audioTrack, stream);
+        }
+      }
+
+      return stream;
+    } catch (ex) {
+      console.error("Media capture error:", ex);
+    }
   };
 
-  // text chat related
-  const handleGetMessage = (input: string) => {
-    addMessageToMessageBox(input);
-  }
 
-  const addMessageToMessageBox = (msg: string) => {
-    setStrangerMsg(msg)
-  }
+  const addTracksToPeer = (peer: RTCPeerConnection, stream: MediaStream) => {
+    if (isVideo) {
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) peer.addTrack(videoTrack, stream);
+    }
+
+    if (isAudio) {
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) peer.addTrack(audioTrack, stream);
+    }
+  };
+
+  const handleGetMessage = (input: string) => {
+    setStrangerMsg(input);
+  };
 
   return {
     myVideoRef,
