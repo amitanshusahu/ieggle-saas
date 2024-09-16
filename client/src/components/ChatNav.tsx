@@ -6,9 +6,9 @@ export default function ChatNav() {
   const { isConnectionStarted, isConnectedWithOtherUser } = useUserStore();
   const { isVideo, setIsVideo, isAudio, setIsAudio, isSetting, setIsSetting } = useSettingStore();
 
-  const skip = () => {
+  const skip = async () => {
     if (!disconnect || !connect) return;
-    disconnect();
+    await disconnect();
     connect();
   }
 

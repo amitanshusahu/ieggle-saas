@@ -32,9 +32,7 @@ export default function useSocketAndWebRTC() {
   useEffect(() => {
     return () => {
       if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setSocketFromStore(null);
+        disconnectSocket();
       }
     };
   }, [socket]);
@@ -74,27 +72,32 @@ export default function useSocketAndWebRTC() {
 
   const connectSocket = () => {
     if (!socket) {
-      const newSocket = io(import.meta.env.VITE_SERVER_URL);
+      const newSocket = io(import.meta.env.VITE_SERVER_URL, {
+        reconnection: false,
+      });
       newSocket.on("connect", () => {
         setSocket(newSocket);
         setSocketFromStore(newSocket);
+        setIsConnectionStarted(true);
         emmitStart(newSocket);
       });
     }
   };
 
-  const disconnectSocket = () => {
-    if (socket) {
-      socket.disconnect();
-      setSocket(null);
-      setSocketFromStore(null);
-      setIsConnectionStarted(false);
-    }
+  const disconnectSocket = async () => {
+    setSocket((currentSocket) => {
+      if (currentSocket) {
+        currentSocket.disconnect();
+        setSocketFromStore(null);
+        setIsConnectionStarted(false);
+        setIsConnectedWithOtherUser(false);
+      }
+      return null; // Ensures that `setSocket(null)` is called after disconnect
+    });
     if (peer) {
       peer.close();
       setPeer(null);
     }
-    setIsConnectedWithOtherUser(false);
   };
 
   const emmitStart = (currentSocket: Socket) => {
@@ -133,6 +136,7 @@ export default function useSocketAndWebRTC() {
 
   const handleDisconnect = () => {
     disconnectSocket();
+    alert("stranger disconnected")
   };
 
   const createPeerConnection = (): RTCPeerConnection => {
