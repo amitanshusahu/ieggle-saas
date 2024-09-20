@@ -9,7 +9,7 @@ export default function ChatNav() {
   const skip = async () => {
     if (!disconnect || !connect) return;
     await disconnect();
-    connect();
+    // connect();
   }
 
   // Toggle video, audio, and settings

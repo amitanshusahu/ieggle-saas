@@ -32,7 +32,10 @@ export default function useSocketAndWebRTC() {
   useEffect(() => {
     return () => {
       if (socket) {
-        disconnectSocket();
+        socket.disconnect();
+        setSocketFromStore(null);
+        setIsConnectionStarted(false);
+        setIsConnectedWithOtherUser(false);
       }
     };
   }, [socket]);
@@ -85,6 +88,21 @@ export default function useSocketAndWebRTC() {
   };
 
   const disconnectSocket = async () => {
+    if (myVideoRef.current) {
+      const stream = myVideoRef.current.srcObject as MediaStream;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      myVideoRef.current.srcObject = null;
+    }
+
+    if (strangerVideoRef.current) {
+      const stream = strangerVideoRef.current.srcObject as MediaStream;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      strangerVideoRef.current.srcObject = null;
+    }
     setSocket((currentSocket) => {
       if (currentSocket) {
         currentSocket.disconnect();
@@ -95,9 +113,16 @@ export default function useSocketAndWebRTC() {
       return null; // Ensures that `setSocket(null)` is called after disconnect
     });
     if (peer) {
+      peer.getSenders().forEach(sender => sender.track?.stop());
       peer.close();
       setPeer(null);
     }
+  };
+
+  const handleSkipAndReconnect = async () => {
+    disconnectSocket(); // Ensure old connection is fully closed
+    await startMediaCapture(); // Start fresh media capture
+    connectSocket(); // Establish new connection
   };
 
   const emmitStart = (currentSocket: Socket) => {
@@ -135,30 +160,35 @@ export default function useSocketAndWebRTC() {
   };
 
   const handleDisconnect = () => {
-    disconnectSocket();
+    // disconnectSocket();
     alert("stranger disconnected")
+    // handleSkipAndReconnect()
+    disconnectSocket();
+    startMediaCapture();
   };
 
   const createPeerConnection = (): RTCPeerConnection => {
     const peer = new RTCPeerConnection();
-
+  
     peer.onnegotiationneeded = async () => {
-      if (peer) await webrtc(peer);
+      if (peer) {
+        await webrtc(peer); // Trigger renegotiation
+      }
     };
-
+  
     peer.onicecandidate = (e) => {
       if (e.candidate) {
         socket?.emit("ice:send", { candidate: e.candidate, to: remoteSocket });
       }
     };
-
+  
     peer.ontrack = (e) => {
       if (strangerVideoRef.current) {
         strangerVideoRef.current.srcObject = e.streams[0];
         strangerVideoRef.current.play();
       }
     };
-
+  
     return peer;
   };
 
@@ -177,22 +207,13 @@ export default function useSocketAndWebRTC() {
         mediaStream.getTracks().forEach((track) => track.stop());
       }
 
-      let constraints;
-      if (isVideo) {
-        constraints = {
-          audio: isAudio,
-          video: {
-            width: { ideal: 640 }, // 360p width
-            height: { ideal: 360 }, // 360p height
-          },
-        };
-      }
-      else {
-        constraints = {
-          audio: isAudio,
-          video: isVideo,
-        };
-      }
+      const constraints = {
+        audio: isAudio,
+        video: isVideo || {
+          width: { ideal: 640 }, // 360p width
+          height: { ideal: 360 }, // 360p height
+        },
+      };
 
       // Capture media based on current video/audio settings
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -272,5 +293,6 @@ export default function useSocketAndWebRTC() {
     strangerVideoRef,
     connectSocket,
     disconnectSocket,
+    handleSkipAndReconnect,
   };
 }

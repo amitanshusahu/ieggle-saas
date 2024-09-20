@@ -6,11 +6,11 @@ import { useSocketStore } from "../store/useStore";
 
 export default function Chat() {
   const {setConnect, setDisonnect} = useSocketStore();
-  const { myVideoRef, strangerVideoRef, connectSocket, disconnectSocket} = useSocketAndWebRTC();
+  const { myVideoRef, strangerVideoRef, connectSocket, disconnectSocket, handleSkipAndReconnect} = useSocketAndWebRTC();
 
   useEffect(() => {
     setConnect(connectSocket)
-    setDisonnect(disconnectSocket)
+    setDisonnect(handleSkipAndReconnect)
   }, [])
 
   return (
